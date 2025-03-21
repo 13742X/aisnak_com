@@ -1,0 +1,610 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JAIRA Priority Project Management System</title>
+    <!-- 100% privacy-first analytics -->
+    <script async src="https://scripts.simpleanalyticscdn.com/latest.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+    .grab-handle {
+    cursor: move;
+    user-select: none; /* Prevent text selection */
+}
+</style>
+</head>
+<body class="bg-white-100 p-4">
+    <div class="text-center p-8">
+        <img src="https://res.cloudinary.com/auuscloud/image/upload/v1742318027/jaira_gziy01.png" class="h-[40px] w-auto mx-auto" />
+    </div>
+    <div class="max-w-7xl mx-auto">
+
+
+        <!-- Project Filter -->
+        <div class="mb-4">
+            <div class="flex flex-wrap gap-2" id="project-filters">
+                <!-- Project filter buttons will be added here dynamically -->
+
+            </div>
+        </div>
+
+        <!-- Add New Task Button -->
+        <div class="mb-4">
+            <button id="add-task" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md">
+                Add New Task
+            </button>
+        </div>
+
+        <!-- Table Container -->
+        <div class="overflow-x-auto bg-white rounded-lg shadow">
+            <table class="min-w-full">
+                <thead>
+                    <tr class="bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
+                      <th class="py-3 px-4">
+                           <span class="sort-indicator" id="grabber">▲</span>
+                      </th>
+                        <th class="py-3 px-4 text-left cursor-pointer" data-sort="urgency">
+                            Urgency <span class="sort-indicator" id="urgency-indicator">▲</span>
+                        </th>
+                        <th class="py-3 px-4 text-left cursor-pointer" data-sort="project">
+                            Project <span class="sort-indicator" id="project-indicator"></span>
+                        </th>
+                        <th class="py-3 px-4 text-left">Status</th>
+                        <th class="py-3 px-4 text-left cursor-pointer" data-sort="ticket">
+                            Ticket <span class="sort-indicator" id="ticket-indicator"></span>
+                        </th>
+                        <th class="py-3 px-4 text-left cursor-pointer" data-sort="startdate">
+                            Start Date <span class="sort-indicator" id="startdate-indicator"></span>
+                        </th>
+                        <th class="py-3 px-4 text-left cursor-pointer" data-sort="duedate">
+                            Due Date <span class="sort-indicator" id="duedate-indicator"></span>
+                        </th>
+                        <th class="py-3 px-4 text-left cursor-pointer" data-sort="enddate">
+                            End Date <span class="sort-indicator" id="enddate-indicator"></span>
+                        </th>
+                        <th class="py-3 px-4 text-left cursor-pointer" data-sort="resource">
+                            Resource <span class="sort-indicator" id="resource-indicator"></span>
+                        </th>
+                        <th class="py-3 px-4 text-left">Comments</th>
+                        <th class="py-3 px-4 text-left"></th>
+                    </tr>
+                </thead>
+                <tbody id="task-table-body" class="text-sm">
+                    <!-- Table rows will be populated here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Edit Task Modal -->
+    <div id="edit-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 w-full max-w-4xl max-h-screen overflow-y-auto">
+            <h2 id="modal-title" class="text-xl font-bold mb-4">Add New Task</h2>
+            <form id="task-form" class="space-y-4">
+                <input type="hidden" id="edit-task-id">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Urgency:</label>
+                        <input type="number" id="edit-urgency" class="w-full px-3 py-2 border rounded-md" readonly>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Project:</label>
+                        <input type="text" id="edit-project" class="w-full px-3 py-2 border rounded-md" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Status:</label>
+                        <div class="flex space-x-4">
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="status" value="red" class="form-radio">
+                                <span class="ml-2">Red</span>
+                            </label>
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="status" value="amber" class="form-radio">
+                                <span class="ml-2">Amber</span>
+                            </label>
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="status" value="green" class="form-radio">
+                                <span class="ml-2">Green</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Ticket:</label>
+                        <input type="text" id="edit-ticket" class="w-full px-3 py-2 border rounded-md">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Start Date:</label>
+                        <input type="date" id="edit-startdate" class="w-full px-3 py-2 border rounded-md">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Due Date:</label>
+                        <input type="date" id="edit-duedate" class="w-full px-3 py-2 border rounded-md">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">End Date:</label>
+                        <input type="date" id="edit-enddate" class="w-full px-3 py-2 border rounded-md">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Resource:</label>
+                        <input type="text" id="edit-resource" class="w-full px-3 py-2 border rounded-md">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Comments:</label>
+                    <textarea id="edit-comments" class="w-full px-3 py-2 border rounded-md h-32"></textarea>
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button type="button" id="cancel-edit" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-md">Cancel</button>
+                    <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Sample data (will be overridden by localStorage if available)
+        let tasks = [
+            {
+                id: 1,
+                urgency: 1,
+                project: "Website Redesign",
+                status: "amber",
+                ticket: "PROJ-101",
+                startdate: "2025-03-10",
+                duedate: "2025-04-15",
+                enddate: "",
+                resource: "John Smith",
+                comments: "Initial design phase completed, waiting for client feedback."
+            },
+            {
+                id: 2,
+                urgency: 2,
+                project: "Database Migration",
+                status: "red",
+                ticket: "PROJ-205",
+                startdate: "2025-03-05",
+                duedate: "2025-03-20",
+                enddate: "",
+                resource: "Jane Doe",
+                comments: "Critical issues with data mapping. Need urgent attention."
+            },
+            {
+                id: 3,
+                urgency: 3,
+                project: "Mobile App Updates",
+                status: "green",
+                ticket: "PROJ-310",
+                startdate: "2025-03-15",
+                duedate: "2025-04-10",
+                enddate: "2025-04-05",
+                resource: "Mike Johnson",
+                comments: "On track, all features implemented ahead of schedule."
+            },
+            {
+                id: 4,
+                urgency: 4,
+                project: "Website Redesign",
+                status: "green",
+                ticket: "PROJ-102",
+                startdate: "2025-03-20",
+                duedate: "2025-04-20",
+                enddate: "",
+                resource: "Sarah Lee",
+                comments: "Backend integration planning in progress."
+            }
+        ];
+
+        // DOM elements
+        const taskTableBody = document.getElementById('task-table-body');
+        const projectFilters = document.getElementById('project-filters');
+        const editModal = document.getElementById('edit-modal');
+        const taskForm = document.getElementById('task-form');
+        const modalTitle = document.getElementById('modal-title');
+        const addTaskBtn = document.getElementById('add-task');
+        const cancelEditBtn = document.getElementById('cancel-edit');
+
+        // Current sort state
+        let currentSort = {
+            column: 'urgency',
+            direction: 'asc'
+        };
+
+        // Current filter
+        let currentFilter = localStorage.getItem("last_selected_project");
+        if (!currentFilter) {
+            currentFilter = 'all';
+        };
+
+        // Load tasks from localStorage
+        function loadTasksFromStorage() {
+            const storedTasks = localStorage.getItem('ppms_tasks');
+            if (storedTasks) {
+                tasks = JSON.parse(storedTasks);
+            }
+        }
+
+        // Save tasks to localStorage
+        function saveTasksToStorage() {
+            localStorage.setItem('ppms_tasks', JSON.stringify(tasks));
+        }
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function () {
+            loadTasksFromStorage();
+            renderTasks();
+            setupProjectFilters();
+            setupSortableTable();
+            setupEventListeners();
+        });
+
+        // Render tasks to the table
+        function renderTasks() {
+      // Clear the table
+      taskTableBody.innerHTML = '';
+
+      // Filter tasks if needed
+      let filteredTasks = tasks;
+      if (currentFilter !== 'all') {
+          filteredTasks = tasks.filter(task => task.project === currentFilter);
+      }
+
+      // Sort tasks
+      filteredTasks.sort((a, b) => {
+          let valueA = a[currentSort.column];
+          let valueB = b[currentSort.column];
+
+          // Handle dates
+          if (['startdate', 'duedate', 'enddate'].includes(currentSort.column)) {
+              valueA = valueA ? new Date(valueA).getTime() : 0;
+              valueB = valueB ? new Date(valueB).getTime() : 0;
+          }
+
+          if (currentSort.direction === 'asc') {
+              return valueA > valueB ? 1 : valueA < valueB ? -1 : 0;
+          } else {
+              return valueA < valueB ? 1 : valueA > valueB ? -1 : 0;
+          }
+      });
+
+      // Update sort indicators
+      updateSortIndicators();
+
+      // Add rows to the table
+      filteredTasks.forEach(task => {
+          const row = document.createElement('tr');
+          row.setAttribute('data-id', task.id);
+          row.className = 'border-b hover:bg-gray-100';
+
+          // Set row background based on status
+          if (task.status === 'red') {
+              row.classList.add('bg-red-100');
+          } else if (task.status === 'amber') {
+              row.classList.add('bg-yellow-100');
+          } else if (task.status === 'green') {
+              row.classList.add('bg-green-100');
+          }
+
+          // Add a grab handle to the row
+          row.innerHTML = `
+      <td class="py-2 px-4">
+          <div class="grab-handle cursor-move">☰</div>
+      </td>
+      <td class="py-2 px-4">${task.urgency}</td>
+      <td class="py-2 px-4">${task.project}</td>
+      <td class="py-2 px-4">
+          <div class="flex items-center">
+              <span class="w-3 h-3 rounded-full ${getStatusColor(task.status)} mr-2"></span>
+              ${capitalizeFirstLetter(task.status)}
+          </div>
+      </td>
+      <td class="py-2 px-4">${task.ticket}</td>
+      <td class="py-2 px-4">${formatDate(task.startdate)}</td>
+      <td class="py-2 px-4">${formatDate(task.duedate)}</td>
+      <td class="py-2 px-4">${formatDate(task.enddate)}</td>
+      <td class="py-2 px-4">${task.resource}</td>
+      <td class="py-2 px-4">
+          <div class="max-h-20 overflow-y-auto text-sm">${task.comments}</div>
+      </td>
+      <td class="py-2 px-4">
+          <button class="edit-task px-2 py-1 rounded" data-id="${task.id}">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="pointer-events-none" viewBox="0 0 16 16">
+                  <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.5-.5V9h-.5a.5.5 0 0 1-.5-.5v-.207l.106-.106z"/>
+              </svg>
+          </button>
+          <button class="delete-task px-2 py-1 rounded" data-id="${task.id}">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="pointer-events-none" viewBox="0 0 16 16">
+                  <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+                  <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+              </svg>
+          </button>
+      </td>
+  `;
+
+          taskTableBody.appendChild(row);
+      });
+
+      // Set up edit and delete buttons
+      document.querySelectorAll('.edit-task').forEach(button => {
+          button.addEventListener('click', editTask);
+      });
+
+      document.querySelectorAll('.delete-task').forEach(button => {
+          button.addEventListener('click', deleteTask);
+      });
+  }
+
+        // Update sort indicators
+        function updateSortIndicators() {
+            // Clear all indicators
+            document.querySelectorAll('.sort-indicator').forEach(indicator => {
+                indicator.textContent = '';
+            });
+
+            // Set current indicator
+            const indicator = document.getElementById(`${currentSort.column}-indicator`);
+            if (indicator) {
+                indicator.textContent = currentSort.direction === 'asc' ? '▲' : '▼';
+            }
+        }
+
+        // Setup project filters
+        function setupProjectFilters() {
+            // Get unique projects
+            const projects = [...new Set(tasks.map(task => task.project))];
+
+            // Clear existing filters (except 'All')
+            while (projectFilters.children.length > 1) {
+                projectFilters.removeChild(projectFilters.lastChild);
+            }
+
+            // Add filter buttons for each project
+            projects.forEach(project => {
+                const button = document.createElement('button');
+                button.className = 'bg-gray-300 hover:bg-gray-400 text-gray-800 px-3 py-1 rounded-md text-sm';
+                button.setAttribute('data-project', project);
+                button.textContent = project;
+                button.addEventListener('click', filterByProject);
+                projectFilters.appendChild(button);
+            });
+
+            // Highlight active filter
+            updateActiveFilter();
+        }
+
+        // Filter tasks by project
+        function filterByProject(e) {
+            currentFilter = e.target.getAttribute('data-project');
+            localStorage.setItem("last_selected_project", currentFilter);
+            updateActiveFilter();
+            renderTasks();
+        }
+
+        // Update active filter button
+        function updateActiveFilter() {
+            document.querySelectorAll('#project-filters button').forEach(button => {
+                const project = button.getAttribute('data-project');
+                if (project === currentFilter) {
+                    button.classList.remove('bg-gray-300');
+                    button.classList.add('bg-blue-500', 'text-white');
+                } else {
+                    button.classList.remove('bg-blue-500', 'text-white');
+                    button.classList.add('bg-gray-300');
+                }
+            });
+        }
+
+        // Set up sortable table
+        function setupSortableTable() {
+      // Set up column sorting
+      const headers = document.querySelectorAll('th[data-sort]');
+
+      headers.forEach(header => {
+          header.addEventListener('click', () => {
+              const column = header.getAttribute('data-sort');
+
+              // Toggle direction if clicking the same column
+              if (currentSort.column === column) {
+                  currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+              } else {
+                  currentSort.column = column;
+                  currentSort.direction = 'asc';
+              }
+
+              renderTasks();
+          });
+      });
+
+      // Set up drag and drop with a grab handle
+      new Sortable(taskTableBody, {
+          animation: 150,
+          ghostClass: 'bg-gray-200',
+          handle: '.grab-handle', // Specify the grab handle element
+          onEnd: function () {
+              updateTaskUrgency();
+          }
+      });
+  }
+
+        // Update task urgency after drag and drop
+        function updateTaskUrgency() {
+            const rows = taskTableBody.querySelectorAll('tr');
+            let urgency = 1;
+
+            // Create a map of new urgency values
+            const urgencyUpdates = {};
+            rows.forEach(row => {
+                const id = parseInt(row.getAttribute('data-id'));
+                urgencyUpdates[id] = urgency++;
+            });
+
+            // Update the tasks array
+            tasks.forEach(task => {
+                if (urgencyUpdates[task.id] !== undefined) {
+                    task.urgency = urgencyUpdates[task.id];
+                }
+            });
+
+            // Save to localStorage
+            saveTasksToStorage();
+
+            // Re-render to update displayed urgency numbers
+            renderTasks();
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Add task button
+            addTaskBtn.addEventListener('click', () => {
+                modalTitle.textContent = 'Add New Task';
+                document.getElementById('edit-task-id').value = '';
+                document.getElementById('edit-urgency').value = tasks.length + 1;
+                document.getElementById('edit-project').value = '';
+                document.querySelectorAll('input[name="status"]').forEach(radio => radio.checked = false);
+                document.getElementById('edit-ticket').value = '';
+                document.getElementById('edit-startdate').value = '';
+                document.getElementById('edit-duedate').value = '';
+                document.getElementById('edit-enddate').value = '';
+                document.getElementById('edit-resource').value = '';
+                document.getElementById('edit-comments').value = '';
+
+                editModal.classList.remove('hidden');
+            });
+
+            // Cancel edit button
+            cancelEditBtn.addEventListener('click', () => {
+                editModal.classList.add('hidden');
+            });
+
+            // Form submission
+            taskForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+
+                const taskId = document.getElementById('edit-task-id').value;
+                const urgency = parseInt(document.getElementById('edit-urgency').value);
+                const project = document.getElementById('edit-project').value;
+                const newProject = document.getElementById('edit-project').value;
+                const status = document.querySelector('input[name="status"]:checked')?.value || 'amber';
+                const ticket = document.getElementById('edit-ticket').value;
+                const startdate = document.getElementById('edit-startdate').value;
+                const duedate = document.getElementById('edit-duedate').value;
+                const enddate = document.getElementById('edit-enddate').value;
+                const resource = document.getElementById('edit-resource').value;
+                const comments = document.getElementById('edit-comments').value;
+
+                if (taskId) {
+                    // Update existing task
+                    const task = tasks.find(t => t.id === parseInt(taskId));
+                    if (task) {
+                        const oldProject = task.project;
+                        task.project = newProject;
+                        task.status = status;
+                        task.ticket = ticket;
+                        task.startdate = startdate;
+                        task.duedate = duedate;
+                        task.enddate = enddate;
+                        task.resource = resource;
+                        task.comments = comments;
+
+                        // Update all matching project names in the tasks array
+                        tasks.forEach(t => {
+                            if (t.project === oldProject) {
+                                t.project = newProject;
+                            }
+                        });
+                    }
+                } else {
+                    // Add new task
+                    const newId = tasks.length > 0 ? Math.max(...tasks.map(t => t.id)) + 1 : 1;
+                    tasks.push({
+                        id: newId,
+                        urgency,
+                        project,
+                        status,
+                        ticket,
+                        startdate,
+                        duedate,
+                        enddate,
+                        resource,
+                        comments
+                    });
+                }
+
+                // Save to localStorage
+                saveTasksToStorage();
+
+                editModal.classList.add('hidden');
+                setupProjectFilters(); // Refresh project filters
+                renderTasks();
+            });
+        }
+
+        // Edit task handler
+        function editTask(e) {
+            const taskId = parseInt(e.target.getAttribute('data-id'));
+            const task = tasks.find(t => t.id === taskId);
+
+            if (task) {
+                modalTitle.textContent = 'Edit Task';
+                document.getElementById('edit-task-id').value = task.id;
+                document.getElementById('edit-urgency').value = task.urgency;
+                document.getElementById('edit-project').value = task.project;
+
+                document.querySelectorAll('input[name="status"]').forEach(radio => {
+                    radio.checked = radio.value === task.status;
+                });
+
+                document.getElementById('edit-ticket').value = task.ticket;
+                document.getElementById('edit-startdate').value = task.startdate;
+                document.getElementById('edit-duedate').value = task.duedate;
+                document.getElementById('edit-enddate').value = task.enddate;
+                document.getElementById('edit-resource').value = task.resource;
+                document.getElementById('edit-comments').value = task.comments;
+
+                editModal.classList.remove('hidden');
+            }
+        }
+
+        // Delete task handler
+        function deleteTask(e) {
+            const taskId = parseInt(e.target.getAttribute('data-id'));
+
+            if (confirm('Are you sure you want to delete this task?')) {
+                tasks = tasks.filter(t => t.id !== taskId);
+
+                // Save to localStorage
+                saveTasksToStorage();
+
+                renderTasks();
+                setupProjectFilters(); // Refresh project filters in case we removed the last of a project
+                updateTaskUrgency(); // Renumber urgency after deletion
+            }
+        }
+
+        // Helper function to get status color class
+        function getStatusColor(status) {
+            switch (status) {
+                case 'red': return 'bg-red-600';
+                case 'amber': return 'bg-yellow-500';
+                case 'green': return 'bg-green-500';
+                default: return 'bg-gray-400';
+            }
+        }
+
+        // Helper function to capitalize first letter
+        function capitalizeFirstLetter(string) {
+            return string.charAt(0).toUpperCase() + string.slice(1);
+        }
+
+        // Helper function to format dates
+        function formatDate(dateString) {
+            if (!dateString) return '';
+
+            const date = new Date(dateString);
+            return date.toLocaleDateString();
+        }
+    </script>
+</body>
+</html>

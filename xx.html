@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Priority Project Management System</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-4">
+    <div class="container mx-auto bg-white shadow-lg rounded-lg p-6">
+        <h1 class="text-2xl font-bold mb-6">Priority Project Management System (PPMS)</h1>
+
+        <!-- Project Filter -->
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Filter by Project:</label>
+            <div class="flex flex-wrap gap-2 mb-4" id="projectButtons">
+                <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded active" data-project="All">
+                    All Projects
+                </button>
+            </div>
+        </div>
+
+        <!-- Add New Row Button -->
+        <button id="addRowBtn" class="mb-6 bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+            Add New Task
+        </button>
+
+        <!-- Project Table -->
+        <div class="overflow-x-auto">
+            <table class="min-w-full bg-white border border-gray-300">
+                <thead>
+                    <tr class="bg-gray-200">
+                        <th class="border px-4 py-2 cursor-pointer select-none" data-sort="urgency">Urgency ↕</th>
+                        <th class="border px-4 py-2 cursor-pointer select-none" data-sort="project">Project ↕</th>
+                        <th class="border px-4 py-2">Status</th>
+                        <th class="border px-4 py-2 cursor-pointer select-none" data-sort="ticket">Ticket ↕</th>
+                        <th class="border px-4 py-2 cursor-pointer select-none" data-sort="startDate">Start Date ↕</th>
+                        <th class="border px-4 py-2 cursor-pointer select-none" data-sort="dueDate">Due Date ↕</th>
+                        <th class="border px-4 py-2 cursor-pointer select-none" data-sort="endDate">End Date ↕</th>
+                        <th class="border px-4 py-2 cursor-pointer select-none" data-sort="resource">Resource ↕</th>
+                        <th class="border px-4 py-2">Comments</th>
+                        <th class="border px-4 py-2">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="taskTableBody">
+                    <!-- Tasks will be added here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Task Row Template -->
+    <template id="taskRowTemplate">
+        <tr class="task-row" draggable="true">
+            <td class="border px-4 py-2">
+                <span class="urgency-number">1</span>
+            </td>
+            <td class="border px-4 py-2">
+                <input type="text" class="project-input border rounded p-1 w-full" required>
+            </td>
+            <td class="border px-4 py-2">
+                <div class="flex space-x-2">
+                    <label class="inline-flex items-center">
+                        <input type="radio" name="status-{id}" value="red" class="status-radio">
+                        <span class="ml-1 w-4 h-4 bg-red-500 rounded-full"></span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="radio" name="status-{id}" value="amber" class="status-radio">
+                        <span class="ml-1 w-4 h-4 bg-yellow-500 rounded-full"></span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="radio" name="status-{id}" value="green" class="status-radio">
+                        <span class="ml-1 w-4 h-4 bg-green-500 rounded-full"></span>
+                    </label>
+                </div>
+            </td>
+            <td class="border px-4 py-2">
+                <input type="text" class="ticket-input border rounded p-1 w-full">
+            </td>
+            <td class="border px-4 py-2">
+                <input type="date" class="start-date-input border rounded p-1 w-full">
+            </td>
+            <td class="border px-4 py-2">
+                <input type="date" class="due-date-input border rounded p-1 w-full">
+            </td>
+            <td class="border px-4 py-2">
+                <input type="date" class="end-date-input border rounded p-1 w-full">
+            </td>
+            <td class="border px-4 py-2">
+                <input type="text" class="resource-input border rounded p-1 w-full">
+            </td>
+            <td class="border px-4 py-2">
+                <textarea class="comments-input border rounded p-1 w-full" rows="2"></textarea>
+            </td>
+            <td class="border px-4 py-2">
+                <button class="delete-btn bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded">
+                    Delete
+                </button>
+            </td>
+        </tr>
+    </template>
+
+    <script>
+        // Task Management
+        let tasks = [];
+        let uniqueId = 1;
+        let currentSort = { column: 'urgency', direction: 'asc' };
+
+        // DOM elements
+        const taskTableBody = document.getElementById('taskTableBody');
+        const addRowBtn = document.getElementById('addRowBtn');
+        const projectButtons = document.getElementById('projectButtons');
+
+        // Initialize sortable table rows
+        let sortable = new Sortable(taskTableBody, {
+            animation: 150,
+            ghostClass: 'bg-gray-100',
+            onEnd: function() {
+                updateUrgencyNumbers();
+                saveTasksToLocalStorage();
+            }
+        });
+
+        // Load tasks from localStorage on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadTasksFromLocalStorage();
+            renderTasks();
+            updateProjectButtons();
+        });
+
+        // Add new task row
+        addRowBtn.addEventListener('click', function() {
+            addNewTask();
+        });
+
+        // Sort table columns
+        document.querySelectorAll('th[data-sort]').forEach(header => {
+            header.addEventListener('click', function() {
+                const column = this.dataset.sort;
+
+                // Toggle sort direction if clicking on the same column
+                if (currentSort.column === column) {
+                    currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+                } else {
+                    currentSort.column = column;
+                    currentSort.direction = 'asc';
+                }
+
+                // Update header text to show sort direction
+                document.querySelectorAll('th[data-sort]').forEach(th => {
+                    th.textContent = th.textContent.replace(' ↑', '').replace(' ↓', '') + ' ↕';
+                });
+
+                this.textContent = this.textContent.replace(' ↕', currentSort.direction === 'asc' ? ' ↑' : ' ↓');
+
+                sortTasks();
+                renderTasks();
+            });
+        });
+
+        // Filter by project
+        projectButtons.addEventListener('click', function(event) {
+            if (event.target.tagName === 'BUTTON') {
+                document.querySelectorAll('#projectButtons button').forEach(btn => {
+                    btn.classList.remove('active', 'bg-blue-700');
+                    btn.classList.add('bg-blue-500');
+                });
+
+                event.target.classList.add('active', 'bg-blue-700');
+                event.target.classList.remove('bg-blue-500');
+
+                renderTasks();
+            }
+        });
+
+        // Create a new task object
+        function createTask() {
+            return {
+                id: uniqueId++,
+                urgency: tasks.length + 1,
+                project: '',
+                status: '',
+                ticket: '',
+                startDate: '',
+                dueDate: '',
+                endDate: '',
+                resource: '',
+                comments: ''
+            };
+        }
+
+        // Add a new task to the tasks array
+        function addNewTask() {
+            const newTask = createTask();
+            tasks.push(newTask);
+
+            renderTask(newTask);
+            updateProjectButtons();
+            saveTasksToLocalStorage();
+        }
+
+        // Render a single task row
+        function renderTask(task) {
+            const template = document.getElementById('taskRowTemplate');
+            const clone = document.importNode(template.content, true);
+            const row = clone.querySelector('.task-row');
+
+            // Set row attributes
+            row.dataset.id = task.id;
+            row.dataset.project = task.project;
+
+            // Update urgency number
+            clone.querySelector('.urgency-number').textContent = task.urgency;
+
+            // Set input values
+            clone.querySelector('.project-input').value = task.project;
+            clone.querySelector('.ticket-input').value = task.ticket;
+            clone.querySelector('.start-date-input').value = task.startDate;
+            clone.querySelector('.due-date-input').value = task.dueDate;
+            clone.querySelector('.end-date-input').value = task.endDate;
+            clone.querySelector('.resource-input').value = task.resource;
+            clone.querySelector('.comments-input').value = task.comments;
+
+            // Set status radio button
+            if (task.status) {
+                const statusRadios = clone.querySelectorAll('.status-radio');
+                statusRadios.forEach(radio => {
+                    radio.name = `status-${task.id}`;
+                    if (radio.value === task.status) {
+                        radio.checked = true;
+                    }
+                });
+            }
+
+            // Update row background based on status
+            if (task.status === 'red') {
+                row.classList.add('bg-red-100');
+            } else if (task.status === 'amber') {
+                row.classList.add('bg-yellow-100');
+            } else if (task.status === 'green') {
+                row.classList.add('bg-green-100');
+            }
+
+            // Add event listeners for inputs
+            addInputEventListeners(clone, task.id);
+
+            // Add event listener for delete button
+            clone.querySelector('.delete-btn').addEventListener('click', function() {
+                deleteTask(task.id);
+            });
+
+            taskTableBody.appendChild(clone);
+        }
+
+        // Add event listeners to task row inputs
+        function addInputEventListeners(row, taskId) {
+            // Project input
+            row.querySelector('.project-input').addEventListener('input', function(event) {
+                updateTaskProperty(taskId, 'project', event.target.value);
+                updateProjectButtons();
+            });
+
+            // Status radio buttons
+            row.querySelectorAll('.status-radio').forEach(radio => {
+                radio.addEventListener('change', function(event) {
+                    updateTaskProperty(taskId, 'status', event.target.value);
+                    updateRowBackground(taskId, event.target.value);
+                });
+            });
+
+            // Other inputs
+            row.querySelector('.ticket-input').addEventListener('input', function(event) {
+                updateTaskProperty(taskId, 'ticket', event.target.value);
+            });
+
+            row.querySelector('.start-date-input').addEventListener('change', function(event) {
+                updateTaskProperty(taskId, 'startDate', event.target.value);
+            });
+
+            row.querySelector('.due-date-input').addEventListener('change', function(event) {
+                updateTaskProperty(taskId, 'dueDate', event.target.value);
+            });
+
+            row.querySelector('.end-date-input').addEventListener('change', function(event) {
+                updateTaskProperty(taskId, 'endDate', event.target.value);
+            });
+
+            row.querySelector('.resource-input').addEventListener('input', function(event) {
+                updateTaskProperty(taskId, 'resource', event.target.value);
+            });
+
+            row.querySelector('.comments-input').addEventListener('input', function(event) {
+                updateTaskProperty(taskId, 'comments', event.target.value);
+            });
+        }
+
+        // Update task property
+        function updateTaskProperty(taskId, property, value) {
+            const task = tasks.find(t => t.id === taskId);
+            if (task) {
+                task[property] = value;
+                saveTasksToLocalStorage();
+            }
+        }
+
+        // Update row background based on status
+        function updateRowBackground(taskId, status) {
+            const row = document.querySelector(`.task-row[data-id="${taskId}"]`);
+            if (row) {
+                // Remove existing status classes
+                row.classList.remove('bg-red-100', 'bg-yellow-100', 'bg-green-100');
+
+                // Add new status class
+                if (status === 'red') {
+                    row.classList.add('bg-red-100');
+                } else if (status === 'amber') {
+                    row.classList.add('bg-yellow-100');
+                } else if (status === 'green') {
+                    row.classList.add('bg-green-100');
+                }
+            }
+        }
+
+        // Delete task
+        function deleteTask(taskId) {
+            tasks = tasks.filter(task => task.id !== taskId);
+
+            renderTasks();
+            updateUrgencyNumbers();
+            updateProjectButtons();
+            saveTasksToLocalStorage();
+        }
+
+        // Render all tasks
+        function renderTasks() {
+            // Clear table
+            taskTableBody.innerHTML = '';
+
+            // Get selected project filter
+            const selectedProject = document.querySelector('#projectButtons button.active').dataset.project;
+
+            // Filter tasks by project (if not "All")
+            let filteredTasks = tasks;
+            if (selectedProject !== 'All') {
+                filteredTasks = tasks.filter(task => task.project === selectedProject);
+            }
+
+            // Render each task
+            filteredTasks.forEach(task => {
+                renderTask(task);
+            });
+        }
+
+        // Update project filter buttons
+        function updateProjectButtons() {
+            // Get unique projects
+            const uniqueProjects = [...new Set(tasks.map(task => task.project).filter(Boolean))];
+
+            // Clear existing buttons (except "All")
+            Array.from(projectButtons.children).forEach(button => {
+                if (button.dataset.project !== 'All') {
+                    button.remove();
+                }
+            });
+
+            // Add project buttons
+            uniqueProjects.forEach(project => {
+                if (!document.querySelector(`#projectButtons button[data-project="${project}"]`)) {
+                    const button = document.createElement('button');
+                    button.classList.add('bg-blue-500', 'hover:bg-blue-700', 'text-white', 'font-bold', 'py-1', 'px-3', 'rounded');
+                    button.dataset.project = project;
+                    button.textContent = project;
+                    projectButtons.appendChild(button);
+                }
+            });
+        }
+
+        // Update urgency numbers after drag and drop
+        function updateUrgencyNumbers() {
+            const rows = document.querySelectorAll('.task-row');
+
+            rows.forEach((row, index) => {
+                const taskId = parseInt(row.dataset.id);
+                const task = tasks.find(t => t.id === taskId);
+
+                if (task) {
+                    task.urgency = index + 1;
+                    row.querySelector('.urgency-number').textContent = index + 1;
+                }
+            });
+        }
+
+        // Sort tasks based on current sort settings
+        function sortTasks() {
+            tasks.sort((a, b) => {
+                let valueA = a[currentSort.column];
+                let valueB = b[currentSort.column];
+
+                // Handle date comparison
+                if (['startDate', 'dueDate', 'endDate'].includes(currentSort.column)) {
+                    valueA = valueA ? new Date(valueA) : new Date(0);
+                    valueB = valueB ? new Date(valueB) : new Date(0);
+                }
+
+                // Handle numerical comparison for urgency
+                if (currentSort.column === 'urgency') {
+                    valueA = parseInt(valueA) || 0;
+                    valueB = parseInt(valueB) || 0;
+                }
+
+                // Handle string comparison (case-insensitive)
+                if (typeof valueA === 'string' && typeof valueB === 'string') {
+                    valueA = valueA.toLowerCase();
+                    valueB = valueB.toLowerCase();
+                }
+
+                if (valueA < valueB) {
+                    return currentSort.direction === 'asc' ? -1 : 1;
+                }
+                if (valueA > valueB) {
+                    return currentSort.direction === 'asc' ? 1 : -1;
+                }
+                return 0;
+            });
+        }
+
+        // Save tasks to localStorage
+        function saveTasksToLocalStorage() {
+            localStorage.setItem('ppms-tasks', JSON.stringify(tasks));
+            localStorage.setItem('ppms-uniqueId', uniqueId);
+        }
+
+        // Load tasks from localStorage
+        function loadTasksFromLocalStorage() {
+            const savedTasks = localStorage.getItem('ppms-tasks');
+            const savedUniqueId = localStorage.getItem('ppms-uniqueId');
+
+            if (savedTasks) {
+                tasks = JSON.parse(savedTasks);
+            }
+
+            if (savedUniqueId) {
+                uniqueId = parseInt(savedUniqueId);
+            }
+
+            // Add sample task if no tasks exist
+            if (tasks.length === 0) {
+                addSampleTask();
+            }
+        }
+
+        // Add a sample task
+        function addSampleTask() {
+            tasks.push({
+                id: uniqueId++,
+                urgency: 1,
+                project: 'Website Redesign',
+                status: 'amber',
+                ticket: 'PROJ-123',
+                startDate: '2025-03-15',
+                dueDate: '2025-04-01',
+                endDate: '',
+                resource: 'John Doe',
+                comments: 'Design phase in progress'
+            });
+        }
+    </script>
+</body>
+</html>

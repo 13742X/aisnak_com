@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Binarii Labs - Data Fragmentation Experts</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body class="bg-gray-900 text-white">
+    <!-- Navigation Menu -->
+    <nav class="fixed w-full bg-gray-900 border-b border-gray-800 z-10">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex justify-between items-center">
+                <!-- Logo -->
+                <div class="flex items-center space-x-2">
+                    <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                        <span class="text-xl font-bold">BL</span>
+                    </div>
+                    <span class="text-xl font-bold">Binarii Labs</span>
+                </div>
+
+                <!-- Desktop Navigation -->
+                <div class="hidden md:flex space-x-8">
+                    <a href="#" class="text-blue-400 hover:text-blue-300 transition">Home</a>
+                    <a href="#" class="text-gray-400 hover:text-blue-300 transition">Solutions</a>
+                    <a href="#" class="text-gray-400 hover:text-blue-300 transition">Technology</a>
+                    <a href="#" class="text-gray-400 hover:text-blue-300 transition">About</a>
+                    <a href="#" class="text-gray-400 hover:text-blue-300 transition">Contact</a>
+                </div>
+
+                <!-- Mobile menu button -->
+                <div class="md:hidden">
+                    <button id="menu-toggle" class="text-gray-400 hover:text-white focus:outline-none">
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Mobile Navigation -->
+            <div id="mobile-menu" class="hidden md:hidden pt-4 pb-2 space-y-2">
+                <a href="#" class="block text-blue-400 hover:text-blue-300 transition py-2">Home</a>
+                <a href="#" class="block text-gray-400 hover:text-blue-300 transition py-2">Solutions</a>
+                <a href="#" class="block text-gray-400 hover:text-blue-300 transition py-2">Technology</a>
+                <a href="#" class="block text-gray-400 hover:text-blue-300 transition py-2">About</a>
+                <a href="#" class="block text-gray-400 hover:text-blue-300 transition py-2">Contact</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section (Above the fold) -->
+    <section class="pt-24 pb-16 min-h-screen flex items-center">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col md:flex-row items-center">
+                <!-- Text Column -->
+                <div class="w-full md:w-1/2 mb-8 md:mb-0 md:pr-8">
+                    <h1 class="text-4xl md:text-5xl font-bold mb-4 text-blue-400">Secure Data Fragmentation Across Multiple Clouds</h1>
+                    <p class="text-lg text-gray-300 mb-6">Binarii Labs delivers next-generation data protection through our proprietary fragmentation technology. Split your data across multiple cloud providers with military-grade encryption for truly hack-proof security.</p>
+                    <div class="flex flex-wrap gap-4">
+                        <a href="#" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition">Get Started</a>
+                        <a href="#" class="border border-blue-400 hover:bg-blue-900 text-blue-400 font-semibold py-3 px-6 rounded-lg transition">Learn More</a>
+                    </div>
+                    <div class="mt-8 flex flex-wrap gap-4 items-center">
+                        <span class="text-gray-400">Trusted by:</span>
+                        <div class="flex space-x-4">
+                            <div class="w-12 h-12 bg-gray-800 rounded-full"></div>
+                            <div class="w-12 h-12 bg-gray-800 rounded-full"></div>
+                            <div class="w-12 h-12 bg-gray-800 rounded-full"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Animation Column -->
+                <div class="w-full md:w-1/2 h-64 md:h-96">
+                    <div id="animation-container" class="w-full h-full bg-gray-800 rounded-lg relative overflow-hidden"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        // Mobile menu toggle
+        document.getElementById('menu-toggle').addEventListener('click', function() {
+            const mobileMenu = document.getElementById('mobile-menu');
+            mobileMenu.classList.toggle('hidden');
+        });
+
+        // Three.js Animation
+        const initAnimation = () => {
+            const container = document.getElementById('animation-container');
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+
+            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setClearColor(0x0a0a0a, 1);
+            container.appendChild(renderer.domElement);
+
+            // Add a group to hold all objects
+            const group = new THREE.Group();
+            scene.add(group);
+
+            // Create node objects
+            const nodeGeometry = new THREE.IcosahedronGeometry(0.5, 0);
+            const nodeMaterial = new THREE.MeshStandardMaterial({ color: 0x3B82F6, roughness: 0.5 });
+
+            // Create "cloud" groups
+            const clouds = [];
+            for (let i = 0; i < 3; i++) {
+                const cloud = new THREE.Group();
+                clouds.push(cloud);
+                group.add(cloud);
+
+                // Position clouds
+                const angle = (i / 3) * Math.PI * 2;
+                cloud.position.x = Math.sin(angle) * 5;
+                cloud.position.z = Math.cos(angle) * 5;
+                cloud.position.y = Math.sin(angle) * 2;
+
+                // Add nodes to cloud
+                for (let j = 0; j < 5; j++) {
+                    const node = new THREE.Mesh(nodeGeometry, nodeMaterial);
+                    node.position.x = (Math.random() - 0.5) * 3;
+                    node.position.y = (Math.random() - 0.5) * 3;
+                    node.position.z = (Math.random() - 0.5) * 3;
+                    node.scale.set(
+                        0.5 + Math.random() * 0.5,
+                        0.5 + Math.random() * 0.5,
+                        0.5 + Math.random() * 0.5
+                    );
+                    cloud.add(node);
+                }
+            }
+
+            // Add connections between nodes
+            const connectionMaterial = new THREE.LineBasicMaterial({ color: 0x1D4ED8, transparent: true, opacity: 0.6 });
+
+            function createConnection(startNode, endNode) {
+                const points = [
+                    startNode.getWorldPosition(new THREE.Vector3()),
+                    endNode.getWorldPosition(new THREE.Vector3())
+                ];
+                const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                const line = new THREE.Line(geometry, connectionMaterial);
+                group.add(line);
+                return line;
+            }
+
+            const connections = [];
+
+            // Create connections between nodes in different clouds
+            for (let i = 0; i < clouds.length; i++) {
+                const cloud1 = clouds[i];
+                const cloud2 = clouds[(i + 1) % clouds.length];
+
+                for (let j = 0; j < 3; j++) {
+                    const node1 = cloud1.children[Math.floor(Math.random() * cloud1.children.length)];
+                    const node2 = cloud2.children[Math.floor(Math.random() * cloud2.children.length)];
+
+                    const connection = createConnection(node1, node2);
+                    connections.push({
+                        line: connection,
+                        startNode: node1,
+                        endNode: node2
+                    });
+                }
+            }
+
+            // Add lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(5, 5, 5);
+            scene.add(directionalLight);
+
+            // Position camera
+            camera.position.z = 10;
+
+            // Animation loop
+            function animate() {
+                requestAnimationFrame(animate);
+
+                // Rotate the entire group
+                group.rotation.y += 0.003;
+
+                // Rotate each cloud
+                clouds.forEach(cloud => {
+                    cloud.rotation.y += 0.005;
+                    cloud.rotation.x += 0.002;
+                });
+
+                // Update connections
+                connections.forEach(connection => {
+                    const geometry = connection.line.geometry;
+                    const points = [
+                        connection.startNode.getWorldPosition(new THREE.Vector3()),
+                        connection.endNode.getWorldPosition(new THREE.Vector3())
+                    ];
+                    geometry.setFromPoints(points);
+                    geometry.verticesNeedUpdate = true;
+                });
+
+                renderer.render(scene, camera);
+            }
+
+            animate();
+
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                camera.aspect = container.clientWidth / container.clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(container.clientWidth, container.clientHeight);
+            });
+        };
+
+        // Initialize animation when the page loads
+        window.addEventListener('load', initAnimation);
+    </script>
+</body>
+</html>

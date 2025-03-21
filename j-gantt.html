@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gantt Chart</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="p-4">
+    <div id="project-buttons" class="flex flex-wrap gap-2 mb-4"></div>
+    <div class="overflow-x-auto">
+        <div id="gantt-grid" class="flex flex-col border border-gray-300 min-w-max"></div>
+    </div>
+
+    <script>
+        const ppmsTasks = JSON.parse(localStorage.getItem('ppms_tasks')) || [];
+        const lastSelectedProject = localStorage.getItem('last_selected_project');
+
+        if (!ppmsTasks.length) {
+            console.log('No tasks found in localStorage. Initializing with an empty array.');
+        }
+
+        const formatWeekRange = (startDate, endDate) => {
+            const startMonth = startDate.toLocaleString('default', { month: 'short' });
+            const startDay = startDate.getDate();
+            const endDay = endDate.getDate();
+            return `${startMonth} ${startDay}-${endDay}`;
+        };
+
+        const formatDayOfWeek = (day) => {
+            const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+            return days[day];
+        };
+
+        const isWeekend = (day) => {
+            return day === 0 || day === 6; // Sunday (0) or Saturday (6)
+        };
+
+        const calculateWeeksRange = (tasks) => {
+            let earliestStart = Infinity;
+            let latestEnd = -Infinity;
+
+            tasks.forEach(task => {
+                const startDate = new Date(task.startdate);
+                const endDate = new Date(task.enddate || task.duedate);
+
+                if (startDate < earliestStart) earliestStart = startDate;
+                if (endDate > latestEnd) latestEnd = endDate;
+            });
+
+            if (earliestStart === Infinity || latestEnd === -Infinity) {
+                const now = new Date();
+                earliestStart = new Date(now.getFullYear(), 0, 1);
+                latestEnd = new Date(now.getFullYear(), 11, 31);
+            }
+
+            const weeks = [];
+            let currentWeekStart = new Date(earliestStart);
+            currentWeekStart.setDate(currentWeekStart.getDate() - currentWeekStart.getDay());
+
+            while (currentWeekStart <= latestEnd) {
+                const currentWeekEnd = new Date(currentWeekStart);
+                currentWeekEnd.setDate(currentWeekEnd.getDate() + 6);
+                weeks.push({ start: new Date(currentWeekStart), end: new Date(currentWeekEnd) });
+                currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+            }
+            return weeks;
+        };
+
+        const getDaysBetweenDates = (startDate, endDate) => {
+            const oneDay = 24 * 60 * 60 * 1000; // hours*minutes*seconds*milliseconds
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+
+            // Set hours to noon to avoid DST issues
+            start.setHours(12, 0, 0, 0);
+            end.setHours(12, 0, 0, 0);
+
+            const diffDays = Math.round(Math.abs((end - start) / oneDay)) + 1; // +1 to include the start day
+            return diffDays;
+        };
+
+        // Function to determine RAG status based on task data
+        const getRAGStatus = (task) => {
+            // If the task has a status property, use it
+            if (task.status) {
+                const status = task.status.toLowerCase();
+                if (status.includes('red')) return 'red';
+                if (status.includes('amber') || status.includes('yellow')) return 'amber';
+                if (status.includes('green')) return 'green';
+            }
+
+            // Otherwise determine based on task dates
+            const now = new Date();
+            const startDate = new Date(task.startdate);
+            const endDate = new Date(task.enddate || task.duedate);
+
+            // Task completed or not yet started
+            if (endDate < now) return 'green';
+            if (startDate > now) return 'green';
+
+            // Task in progress
+            const totalDays = getDaysBetweenDates(startDate, endDate);
+            const daysElapsed = getDaysBetweenDates(startDate, now);
+            const percentComplete = (daysElapsed / totalDays) * 100;
+
+            // Simple heuristic: if we've used more than 80% of the time, it's red
+            // if we've used more than 50% of the time, it's amber
+            if (percentComplete > 80) return 'red';
+            if (percentComplete > 50) return 'amber';
+            return 'green';
+        };
+
+        // Function to get RAG color classes
+        const getRAGColorClass = (status) => {
+            switch (status) {
+                case 'red':
+                    return 'bg-red-100';
+                case 'amber':
+                    return 'bg-amber-100';
+                case 'green':
+                    return 'bg-green-100';
+                default:
+                    return '';
+            }
+        };
+
+        // Function to get RAG flag indicator
+        const getRAGFlagIndicator = (status) => {
+            switch (status) {
+                case 'red':
+                    return '<span class="inline-block w-4 h-4 bg-red-500 rounded-full"></span>';
+                case 'amber':
+                    return '<span class="inline-block w-4 h-4 bg-amber-500 rounded-full"></span>';
+                case 'green':
+                    return '<span class="inline-block w-4 h-4 bg-green-500 rounded-full"></span>';
+                default:
+                    return '';
+            }
+        };
+
+        const ganttGrid = document.getElementById('gantt-grid');
+        const projectButtonsContainer = document.getElementById('project-buttons');
+
+        const renderGridHeaders = (weeks) => {
+            ganttGrid.innerHTML = '';
+
+            // Year header row
+            const yearHeaderRow = document.createElement('div');
+            yearHeaderRow.className = 'flex border-b border-gray-300 bg-gray-100 font-bold';
+
+            const emptyCell1 = document.createElement('div');
+            emptyCell1.className = 'w-32 p-2 text-center border-r border-gray-300 flex-shrink-0';
+            yearHeaderRow.appendChild(emptyCell1);
+
+            const statusCell = document.createElement('div');
+            statusCell.className = 'w-16 p-2 text-center border-r border-gray-300 flex-shrink-0';
+            yearHeaderRow.appendChild(statusCell);
+
+            const emptyCell2 = document.createElement('div');
+            emptyCell2.className = 'w-32 p-2 text-center border-r border-gray-300 flex-shrink-0';
+            yearHeaderRow.appendChild(emptyCell2);
+
+            const daysCell = document.createElement('div');
+            daysCell.className = 'w-20 p-2 text-center border-r border-gray-300 flex-shrink-0';
+            yearHeaderRow.appendChild(daysCell);
+
+            weeks.forEach(week => {
+                const yearCell = document.createElement('div');
+                yearCell.className = 'w-56 p-2 text-center border-r border-gray-300 flex-shrink-0';
+                yearCell.textContent = week.start.getFullYear();
+                yearHeaderRow.appendChild(yearCell);
+            });
+
+            ganttGrid.appendChild(yearHeaderRow);
+
+            // Week header row
+            const weekHeaderRow = document.createElement('div');
+            weekHeaderRow.className = 'flex border-b border-gray-300 bg-gray-100 font-bold';
+
+            const resourceHeader = document.createElement('div');
+            resourceHeader.className = 'w-32 p-2 text-center border-r border-gray-300 flex-shrink-0';
+            resourceHeader.textContent = 'Resource';
+            weekHeaderRow.appendChild(resourceHeader);
+
+            const statusHeader = document.createElement('div');
+            statusHeader.className = 'w-16 p-2 text-center border-r border-gray-300 flex-shrink-0';
+            statusHeader.textContent = 'Status';
+            weekHeaderRow.appendChild(statusHeader);
+
+            const ticketHeader = document.createElement('div');
+            ticketHeader.className = 'w-32 p-2 text-center border-r border-gray-300 flex-shrink-0';
+            ticketHeader.textContent = 'Ticket';
+            weekHeaderRow.appendChild(ticketHeader);
+
+            const daysHeader = document.createElement('div');
+            daysHeader.className = 'w-20 p-2 text-center border-r border-gray-300 flex-shrink-0';
+            daysHeader.textContent = 'Days';
+            weekHeaderRow.appendChild(daysHeader);
+
+            weeks.forEach(week => {
+                const weekCell = document.createElement('div');
+                weekCell.className = 'w-56 p-2 text-center border-r border-gray-300 flex-shrink-0 flex';
+                weekCell.textContent = formatWeekRange(week.start, week.end);
+                weekHeaderRow.appendChild(weekCell);
+            });
+
+            ganttGrid.appendChild(weekHeaderRow);
+
+            // Day of week header row
+            const dayHeaderRow = document.createElement('div');
+            dayHeaderRow.className = 'flex border-b border-gray-300 bg-gray-100';
+
+            const emptyResourceCell = document.createElement('div');
+            emptyResourceCell.className = 'w-32 p-2 text-center border-r border-gray-300 flex-shrink-0';
+            dayHeaderRow.appendChild(emptyResourceCell);
+
+            const emptyStatusCell = document.createElement('div');
+            emptyStatusCell.className = 'w-16 p-2 text-center border-r border-gray-300 flex-shrink-0';
+            dayHeaderRow.appendChild(emptyStatusCell);
+
+            const emptyTicketCell = document.createElement('div');
+            emptyTicketCell.className = 'w-32 p-2 text-center border-r border-gray-300 flex-shrink-0';
+            dayHeaderRow.appendChild(emptyTicketCell);
+
+            const emptyDaysCell = document.createElement('div');
+            emptyDaysCell.className = 'w-20 p-2 text-center border-r border-gray-300 flex-shrink-0';
+            dayHeaderRow.appendChild(emptyDaysCell);
+
+            weeks.forEach(week => {
+                const dayContainer = document.createElement('div');
+                dayContainer.className = 'flex w-56 flex-shrink-0 border-r border-gray-300';
+
+                for (let i = 0; i < 7; i++) {
+                    const currentDay = new Date(week.start);
+                    currentDay.setDate(currentDay.getDate() + i);
+
+                    const dayCell = document.createElement('div');
+                    dayCell.className = 'w-8 p-1 text-center flex-1 font-bold';
+
+                    // Add gray background for weekend days
+                    if (isWeekend(i)) {
+                        dayCell.className += ' bg-gray-200';
+                    }
+
+                    dayCell.textContent = formatDayOfWeek(i);
+                    dayContainer.appendChild(dayCell);
+                }
+
+                dayHeaderRow.appendChild(dayContainer);
+            });
+
+            ganttGrid.appendChild(dayHeaderRow);
+        };
+
+        const filterTasksByProject = (project) => {
+            // Save the selected project to localStorage
+            localStorage.setItem('last_selected_project', project);
+
+            const filteredTasks = ppmsTasks.filter(task => task.project === project);
+            ganttGrid.innerHTML = ''; // Clear previous grid
+
+            if (!filteredTasks.length) {
+                ganttGrid.innerHTML = '<p class="p-4">No tasks found for this project.</p>';
+                return;
+            }
+
+            const weeks = calculateWeeksRange(filteredTasks);
+            renderGridHeaders(weeks);
+
+            filteredTasks.forEach(task => {
+                const ragStatus = getRAGStatus(task);
+                const ragColorClass = getRAGColorClass(ragStatus);
+
+                const taskRow = document.createElement('div');
+                taskRow.className = `flex border-b border-gray-300 ${ragColorClass}`;
+
+                const resourceCell = document.createElement('div');
+                resourceCell.className = 'w-32 p-2 text-center border-r border-gray-300 flex-shrink-0';
+                resourceCell.textContent = task.resource;
+                taskRow.appendChild(resourceCell);
+
+                const statusCell = document.createElement('div');
+                statusCell.className = 'w-16 p-2 text-center border-r border-gray-300 flex-shrink-0';
+                statusCell.innerHTML = getRAGFlagIndicator(ragStatus);
+                taskRow.appendChild(statusCell);
+
+                const ticketCell = document.createElement('div');
+                ticketCell.className = 'w-32 p-2 text-center border-r border-gray-300 flex-shrink-0';
+                ticketCell.textContent = task.ticket;
+                taskRow.appendChild(ticketCell);
+
+                const startDate = new Date(task.startdate);
+                const endDate = new Date(task.enddate || task.duedate);
+
+                const daysCell = document.createElement('div');
+                daysCell.className = 'w-20 p-2 text-center border-r border-gray-300 flex-shrink-0';
+                daysCell.textContent = getDaysBetweenDates(startDate, endDate);
+                taskRow.appendChild(daysCell);
+
+                weeks.forEach(week => {
+                    const weekContainer = document.createElement('div');
+                    weekContainer.className = 'flex w-56 flex-shrink-0 border-r border-gray-300';
+
+                    for (let i = 0; i < 7; i++) {
+                        const currentDay = new Date(week.start);
+                        currentDay.setDate(currentDay.getDate() + i);
+
+                        const dayCell = document.createElement('div');
+                        dayCell.className = 'w-8 p-1 text-center flex-1';
+
+                        // Add gray background for weekend days
+                        if (isWeekend(i)) {
+                            dayCell.className += ' bg-gray-200';
+                        }
+
+                        // Check if this day falls within the task's date range
+                        if (currentDay >= startDate && currentDay <= endDate) {
+                            dayCell.className += ' bg-blue-200';
+
+                            // If this is a weekend day within the task range, use a different color
+                            if (isWeekend(i)) {
+                                dayCell.className = dayCell.className.replace('bg-gray-200', '').replace('bg-blue-200', '');
+                                dayCell.className += ' bg-blue-100';
+                            }
+                        }
+
+                        weekContainer.appendChild(dayCell);
+                    }
+
+                    taskRow.appendChild(weekContainer);
+                });
+
+                ganttGrid.appendChild(taskRow);
+            });
+        };
+
+        // Create project buttons
+        const tasksByProject = ppmsTasks.reduce((acc, task) => {
+            if (!acc[task.project]) acc[task.project] = [];
+            acc[task.project].push(task);
+            return acc;
+        }, {});
+
+        // Add visual indication for the selected project
+        const updateButtonStyles = (selectedProject) => {
+            const buttons = projectButtonsContainer.querySelectorAll('button');
+            buttons.forEach(button => {
+                if (button.textContent === selectedProject) {
+                    button.className = 'px-4 py-2 bg-blue-700 text-white rounded hover:bg-blue-800';
+                } else {
+                    button.className = 'px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600';
+                }
+            });
+        };
+
+        Object.keys(tasksByProject).forEach(project => {
+            const button = document.createElement('button');
+            button.className = 'px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600';
+            button.textContent = project;
+            button.addEventListener('click', () => {
+                filterTasksByProject(project);
+                updateButtonStyles(project);
+            });
+            projectButtonsContainer.appendChild(button);
+        });
+
+        // Initialize with the last selected project or the first project
+        if (lastSelectedProject && Object.keys(tasksByProject).includes(lastSelectedProject)) {
+            filterTasksByProject(lastSelectedProject);
+            updateButtonStyles(lastSelectedProject);
+        } else {
+            const firstProject = Object.keys(tasksByProject)[0];
+            if (firstProject) {
+                filterTasksByProject(firstProject);
+                updateButtonStyles(firstProject);
+            } else {
+                // If no projects exist, still show an empty grid
+                const weeks = calculateWeeksRange([]);
+                renderGridHeaders(weeks);
+            }
+        }
+    </script>
+</body>
+</html>

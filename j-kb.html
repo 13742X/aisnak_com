@@ -1,0 +1,200 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-200 min-h-screen p-4">
+    <!-- Main Content -->
+    <h1 class="text-3xl font-bold text-center mb-6">Kan Ban</h1>
+
+    <!-- Project Filter Buttons -->
+    <div id="project-filters" class="flex justify-center gap-4 mb-6 sticky top-0 bg-gray-200 z-10 py-4">
+        <!-- Buttons will be dynamically generated here -->
+    </div>
+    <div class="w-full flex justify-center items-center">
+
+
+        <!-- Columns -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- Red Column -->
+            <div id="red-column" class="bg-red-500 p-3 rounded-lg flex flex-col gap-2" ondrop="drop(event, 'red')" ondragover="allowDrop(event)">
+                <h2 class="text-white">Red</h2>
+                <div id="red-cells" class="flex flex-col gap-2"></div>
+            </div>
+
+            <!-- Amber Column -->
+            <div id="amber-column" class="bg-amber-500 p-3 rounded-lg flex flex-col gap-2" ondrop="drop(event, 'amber')" ondragover="allowDrop(event)">
+                <h2 class="text-white">Amber</h2>
+                <div id="amber-cells" class="flex flex-col gap-2"></div>
+            </div>
+
+            <!-- Green Column -->
+            <div id="green-column" class="bg-green-500 p-3 rounded-lg flex flex-col gap-2" ondrop="drop(event, 'green')" ondragover="allowDrop(event)">
+                <h2 class="text-white">Green</h2>
+                <div id="green-cells" class="flex flex-col gap-2"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Retrieve tasks from localStorage
+        let tasks = JSON.parse(localStorage.getItem("ppms_tasks")) || [];
+        // Retrieve last selected project from localStorage using the same key as in the Gantt chart
+        const lastSelectedProject = localStorage.getItem('last_selected_project');
+
+        // Initialize the grid with tasks
+        window.onload = function () {
+            loadTasks();
+            generateProjectFilters();
+
+            // Apply the last selected filter if it exists
+            if (lastSelectedProject) {
+                filterTasks(lastSelectedProject);
+                updateButtonStyles(lastSelectedProject);
+            } else {
+                // Default to showing all tasks
+                filterTasks("all");
+                updateButtonStyles("all");
+            }
+        };
+
+        function allowDrop(event) {
+            event.preventDefault();
+        }
+
+        function drag(event) {
+            event.dataTransfer.setData("text", event.target.id);
+        }
+
+        function drop(event, column) {
+            event.preventDefault();
+            const id = event.dataTransfer.getData("text");
+            const draggedElement = document.getElementById(id);
+            document.getElementById(`${column}-cells`).appendChild(draggedElement);
+            updateTaskColumn(id, column);
+        }
+
+        function createTaskElement(task) {
+            const { id, project, resource, comments, status } = task;
+            const taskDiv = document.createElement("div");
+            taskDiv.classList.add("p-2", "rounded", "bg-white", "shadow-lg", "draggable", "flex", "flex-col", "gap-2");
+            taskDiv.setAttribute("id", id);
+            taskDiv.setAttribute("draggable", "true");
+            taskDiv.setAttribute("ondragstart", "drag(event)");
+
+            const projectText = document.createElement("div");
+            projectText.classList.add("text-sm", "font-bold");
+            projectText.textContent = `Project: ${project}`;
+
+            const resourceText = document.createElement("div");
+            resourceText.classList.add("text-sm");
+            resourceText.textContent = `Resource: ${resource}`;
+
+            const commentsText = document.createElement("input");
+            commentsText.type = "text";
+            commentsText.classList.add("w-full", "p-2", "rounded", "text-black", "border");
+            commentsText.value = comments;
+            commentsText.placeholder = "Enter task details";
+            commentsText.addEventListener("input", () => updateTaskComments(id, commentsText.value));
+
+            taskDiv.appendChild(projectText);
+            taskDiv.appendChild(resourceText);
+            taskDiv.appendChild(commentsText);
+
+            return taskDiv;
+        }
+
+        function loadTasks() {
+            tasks.forEach(task => {
+                const taskElement = createTaskElement(task);
+                const columnId = `${task.status}-cells`;
+                const column = document.getElementById(columnId);
+                if (column) {
+                    column.appendChild(taskElement);
+                }
+            });
+        }
+
+        function updateTaskColumn(taskId, newColumn) {
+            const task = tasks.find(t => t.id == taskId);
+            if (task) {
+                task.status = newColumn;
+                saveToLocalStorage();
+            }
+        }
+
+        function updateTaskComments(taskId, newComments) {
+            const task = tasks.find(t => t.id == taskId);
+            if (task) {
+                task.comments = newComments;
+                saveToLocalStorage();
+            }
+        }
+
+        function saveToLocalStorage() {
+            localStorage.setItem("ppms_tasks", JSON.stringify(tasks));
+        }
+
+        // Update button styles to show which one is active
+        function updateButtonStyles(selectedProject) {
+            const buttons = document.querySelectorAll("#project-filters button");
+            buttons.forEach(button => {
+                if (button.textContent === selectedProject) {
+                    button.className = "bg-blue-700 text-white p-2 rounded hover:bg-blue-800";
+                } else {
+                    button.className = "bg-blue-500 text-white p-2 rounded hover:bg-blue-600";
+                }
+            });
+        }
+
+        // Generate project filter buttons
+        function generateProjectFilters() {
+            const projectFilters = document.getElementById("project-filters");
+            const projects = [...new Set(tasks.map(task => task.project))]; // Get unique project names
+
+            // Add "All" button
+            const allButton = document.createElement("button");
+            allButton.textContent = "All";
+            allButton.classList.add("bg-blue-500", "text-white", "p-2", "rounded", "hover:bg-blue-600");
+            allButton.addEventListener("click", () => {
+                filterTasks("all");
+                updateButtonStyles("all");
+                // Don't save "all" to localStorage to prevent conflicts with specific project views
+                localStorage.removeItem('last_selected_project');
+            });
+            projectFilters.appendChild(allButton);
+
+            // Add buttons for each project
+            projects.forEach(project => {
+                const projectButton = document.createElement("button");
+                projectButton.textContent = project;
+                projectButton.classList.add("bg-blue-500", "text-white", "p-2", "rounded", "hover:bg-blue-600");
+                projectButton.addEventListener("click", () => {
+                    filterTasks(project);
+                    updateButtonStyles(project);
+                    // Save selected project to localStorage using the same key as in Gantt chart
+                    localStorage.setItem('last_selected_project', project);
+                });
+                projectFilters.appendChild(projectButton);
+            });
+        }
+
+        // Filter tasks by project
+        function filterTasks(project) {
+            const allTasks = document.querySelectorAll(".draggable");
+            allTasks.forEach(task => {
+                const taskProject = tasks.find(t => t.id == task.id)?.project;
+                if (project === "all" || taskProject === project) {
+                    task.style.display = "flex";
+                } else {
+                    task.style.display = "none";
+                }
+            });
+        }
+    </script>
+</body>
+</html>
